@@ -26,7 +26,7 @@ connection
     process.exit(0);
   })
   .on('error', e => {
-    throw e;
+    console.log(e);
   });
 
 

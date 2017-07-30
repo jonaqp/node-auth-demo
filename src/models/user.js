@@ -1,11 +1,6 @@
 import mongoose, {Schema} from 'mongoose';
-import jwt from 'jsonwebtoken';
 import uniqueValidator from 'mongoose-unique-validator';
 import hashers from 'node-django-hashers';
-import httpStatus from 'http-status';
-import APIError from '../utils/api-error';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'asdfghjklñ123456';
 
 const UserSchema = new Schema(
   {
@@ -41,6 +36,7 @@ const UserSchema = new Schema(
       type: Boolean,
       default: false
     },
+    userProfileId: {type: Schema.Types.ObjectId, ref: 'userProfile'}
 
   },
   {timestamps: true}
@@ -58,7 +54,9 @@ UserSchema.pre('save', function (next) {
     this.updatedAt = currentDate;
   }
 
-  if (!user.isModified('password')) {return next();}
+  if (!user.isModified('password')) {
+    return next();
+  }
 
   const h = new hashers.PBKDF2PasswordHasher();
   user.password = h.encode(user.password, h.salt());
@@ -66,61 +64,13 @@ UserSchema.pre('save', function (next) {
 
 });
 
-
-UserSchema.methods = {
-  comparePassword(changePwd, currentPwd) {
-    const hashName = hashers.identifyHasher(currentPwd);
-    const hashAlgorithm = hashers.getHasher(hashName);
-    const isPassword = hashAlgorithm.verify(changePwd, currentPwd);
-    return Boolean(isPassword);
-  },
-  createUserToken(user) {
-    const expiresIn = 900000000;
-    return jwt.sign({
-      id: user._id,
-      email: user.email
-    }, JWT_SECRET, {
-      expiresIn,
-    });
-
-  },
-  toAuthJSON () {
-    return {
-      _id: this._id,
-      token: `JWT ${this.createUserToken()}`
-    };
-  }
-};
-
-UserSchema.statics = {
-  get(id) {
-    return this.findById(id)
-      .exec()
-      .then(user => {
-        if (user) {
-          return user;
-        }
-        const err = new APIError('No such user exists!', httpStatus.NOT_FOUND);
-        return Promise.reject(err);
-      });
-  },
-
-  list({skip = 0, limit = 50} = {}) {
-    return this.find()
-      .sort({createdAt: -1})
-      .skip(Number(skip))
-      .limit(Number(limit))
-      .exec();
-  }
-
-};
-
 let UserModel;
 
 try {
-  UserModel = mongoose.model('User');
+  UserModel = mongoose.model('user', 'user');
+
 } catch (e) {
-  UserModel = mongoose.model('User', UserSchema);
+  UserModel = mongoose.model('user', UserSchema, 'user');
 }
 
 export default UserModel;

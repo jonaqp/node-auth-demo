@@ -1,6 +1,32 @@
 import {GraphQLBoolean, GraphQLID, GraphQLInputObjectType, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLSchema, GraphQLString} from 'graphql';
-import UserModel from '../../lib/users';
+import {GraphQLDateTime} from 'graphql-custom-types';
+import User from '../../lib/users';
+import UserProfile from '../../lib/userProfiles';
 
+
+const UserProfileType = new GraphQLObjectType({
+  name: 'UserProfile',
+  fields: () => ({
+    _id: {type: new GraphQLNonNull(GraphQLID)},
+    userId: {
+      type: new GraphQLList(UserType),
+      resolve(parentValue) {
+          const query = {_id: parentValue.userId};
+          return User.getAll(query)
+
+      }
+    },
+    firstName: {type: GraphQLString},
+    lastName: {type: GraphQLString},
+    bio: {type: GraphQLString},
+    birthday: {type: GraphQLDateTime},
+    picture: {type: GraphQLString},
+    location: {type: GraphQLString},
+    website: {type: GraphQLString},
+    gender: {type: GraphQLString},
+
+  })
+});
 
 const UserType = new GraphQLObjectType({
   name: 'User',
@@ -8,7 +34,14 @@ const UserType = new GraphQLObjectType({
     _id: {type: new GraphQLNonNull(GraphQLID)},
     email: {type: new GraphQLNonNull(GraphQLString)},
     password: {type: new GraphQLNonNull(GraphQLString)},
-    isAdmin: {type: GraphQLBoolean, defaultValue: false}
+    isAdmin: {type: GraphQLBoolean, defaultValue: false},
+    userProfileId: {
+      type: new GraphQLList(UserProfileType),
+      resolve(parentValue) {
+          const query = {_id: parentValue.userProfileId};
+          return UserProfile.getAll(query)
+      }
+    },
   })
 });
 
@@ -18,6 +51,8 @@ const userAddInputType = new GraphQLInputObjectType({
   fields: {
     email: {type: new GraphQLNonNull(GraphQLString)},
     password: {type: new GraphQLNonNull(GraphQLString)},
+    firstName: {type: GraphQLString},
+    lastName: {type: GraphQLString},
     isAdmin: {type: GraphQLBoolean, defaultValue: false}
   }
 });
@@ -31,7 +66,7 @@ const userEditInputType = new GraphQLInputObjectType({
 
 const RootQueryType = new GraphQLObjectType({
   name: 'RootQueryType',
-  fields: {
+  fields: () => ({
     user: {
       type: UserType,
       args: {
@@ -41,17 +76,17 @@ const RootQueryType = new GraphQLObjectType({
         }
       },
       resolve(root, params) {
-        return UserModel.getById(params.id);
+        return User.getById(params.id);
       }
     },
     users: {
       type: new GraphQLList(UserType),
       resolve() {
-        return UserModel.list();
+        return User.list();
       }
     }
 
-  }
+  })
 });
 
 
@@ -68,7 +103,7 @@ const mutation = new GraphQLObjectType({
         }
       },
       resolve(root, params) {
-        return UserModel.create(params.data);
+        return User.create(params.data);
 
       }
     },
@@ -82,12 +117,12 @@ const mutation = new GraphQLObjectType({
         }
       },
       async resolve(root, params) {
-        return UserModel.remove(params.id);
+        return User.remove(params.id);
       }
     },
     editUser: {
       type: UserType,
-      description: 'Create a new user',
+      description: 'Edit a user',
       args: {
         id: {
           name: 'id',
@@ -99,7 +134,7 @@ const mutation = new GraphQLObjectType({
         }
       },
       resolve(root, {id, data}) {
-          return UserModel.update(id, data)
+        return User.update(id, data);
       }
     }
   })
